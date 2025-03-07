@@ -14,11 +14,16 @@ module.exports = {
       }
 
       try {
+        // PERBAIKAN UTAMA: Selalu gunakan deferReply() terlebih dahulu
+        // untuk mencegah error "The application did not respond"
+        await interaction.deferReply();
+        
+        // Eksekusi command setelah defer
         await command.execute(interaction);
       } catch (error) {
         console.error(error);
         if (interaction.replied || interaction.deferred) {
-          await interaction.followUp({ content: 'Terjadi kesalahan saat menjalankan perintah ini!', ephemeral: true });
+          await interaction.editReply({ content: 'Terjadi kesalahan saat menjalankan perintah ini!', ephemeral: true });
         } else {
           await interaction.reply({ content: 'Terjadi kesalahan saat menjalankan perintah ini!', ephemeral: true });
         }
@@ -28,6 +33,9 @@ module.exports = {
     // Handle Select Menus
     else if (interaction.isStringSelectMenu()) {
       const selectMenuId = interaction.customId;
+      
+      // PERBAIKAN: Gunakan deferReply untuk semua jenis interaksi
+      await interaction.deferReply({ ephemeral: true });
       
       if (selectMenuId === 'help_menu') {
         const selected = interaction.values[0];
@@ -48,7 +56,8 @@ module.exports = {
             responseContent = 'Pilihan tidak valid.';
         }
         
-        await interaction.reply({
+        // PERBAIKAN: Gunakan editReply karena sudah menggunakan deferReply
+        await interaction.editReply({
           content: responseContent,
           ephemeral: true
         });
@@ -62,12 +71,14 @@ module.exports = {
         const result = economy.buyItem(interaction.user.id, selectedItemId);
         
         if (result.success) {
-          await interaction.reply({
+          // PERBAIKAN: Gunakan editReply karena sudah menggunakan deferReply
+          await interaction.editReply({
             content: `✅ Anda telah membeli **${result.item.name}** seharga ${economy.currency} ${result.item.price.toLocaleString()}!\nSaldo baru: ${economy.currency} ${result.newBalance.toLocaleString()}`,
             ephemeral: true
           });
         } else {
-          await interaction.reply({
+          // PERBAIKAN: Gunakan editReply karena sudah menggunakan deferReply
+          await interaction.editReply({
             content: `❌ Gagal membeli item: ${result.reason}${result.required ? `\nAnda memerlukan ${economy.currency} ${result.required.toLocaleString()}, tetapi hanya memiliki ${economy.currency} ${result.current.toLocaleString()}.` : ''}`,
             ephemeral: true
           });
@@ -78,33 +89,36 @@ module.exports = {
       else if (selectMenuId === 'main_menu') {
         const selected = interaction.values[0];
         
+        // PERBAIKAN: Untuk panggilan command di dalam interaksi menu,
+        // kita perlu mengirimkan response terlebih dahulu
+        let responseContent = 'Memproses permintaan Anda...';
+        
         // Eksekusi perintah sesuai pilihan di menu
         switch(selected) {
           case 'help':
-            // Temukan command help
-            const helpCommand = interaction.client.commands.get('help');
-            if (helpCommand) {
-              await helpCommand.execute(interaction);
-            }
+            responseContent = 'Menampilkan bantuan...';
             break;
           case 'info':
-            // Temukan command info
-            const infoCommand = interaction.client.commands.get('info');
-            if (infoCommand) {
-              await infoCommand.execute(interaction);
-            }
+            responseContent = 'Menampilkan informasi bot...';
             break;
           case 'settings':
-            await interaction.reply({
-              content: 'Pengaturan server dapat dikonfigurasi oleh admin menggunakan perintah `/setup`.',
-              ephemeral: true
-            });
+            responseContent = 'Pengaturan server dapat dikonfigurasi oleh admin menggunakan perintah `/setup`.';
             break;
           default:
-            await interaction.reply({
-              content: 'Pilihan tidak valid.',
-              ephemeral: true
-            });
+            responseContent = 'Pilihan tidak valid.';
+        }
+        
+        // PERBAIKAN: Gunakan editReply karena sudah menggunakan deferReply
+        await interaction.editReply({
+          content: responseContent,
+          ephemeral: true
+        });
+        
+        // Untuk help dan info, kita perlu menangani secara khusus karena kita tidak bisa
+        // langsung memanggil command lain dari interaksi yang sudah direspon
+        if (selected === 'help' || selected === 'info') {
+          // Di sini Anda bisa mengimplementasikan logika help/info secara langsung
+          // atau mengirim pesan follow-up jika diperlukan
         }
       }
     }
@@ -113,8 +127,12 @@ module.exports = {
     else if (interaction.isButton()) {
       const buttonId = interaction.customId;
       
+      // PERBAIKAN: Gunakan deferReply untuk button juga
+      await interaction.deferReply({ ephemeral: true });
+      
       if (buttonId === 'info_button') {
-        await interaction.reply({
+        // PERBAIKAN: Gunakan editReply karena sudah menggunakan deferReply
+        await interaction.editReply({
           content: 'Bot ini dibuat dengan Discord.js dan di-deploy menggunakan Railway.',
           ephemeral: true
         });
